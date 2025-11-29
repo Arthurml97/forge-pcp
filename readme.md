@@ -1,6 +1,6 @@
 # 🏭 Forge PCP - Sistema de Planejamento e Controle de Produção
 
-Sistema ERP focado em gestão industrial, desenvolvido para simular o controle de chão de fábrica, engenharia de produto e rastreabilidade de estoque.
+**Sistema ERP** focado em gestão industrial, desenvolvido para simular o controle de chão de fábrica, engenharia de produto e rastreabilidade de estoque.
 
 ![Status](https://img.shields.io/badge/Status-MVP%20Concluído-green)
 
@@ -50,4 +50,4 @@ npm run dev
 Abra o navegador e acesse `http://localhost:5173` para ver o sistema em ação.
 
 ## 👨‍💻 Autor
-Desenvolvido por Arthur Liscano como parte do portfólio de Desenvolvimento Backend Java.
+Desenvolvido por **Arthur Liscano** como parte do portfólio de Desenvolvimento Backend Java.
