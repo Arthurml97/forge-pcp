@@ -19,7 +19,7 @@ Indústrias precisam garantir que a produção só ocorra se houver insumos sufi
 
 ## Funcionalidades Principais
 1.  **Controle de Estoque Inteligente:** Impede produção se faltar matéria-prima.
-2.  **Ficha Técnica (BOM):** Define que "Mesa" = "4 Pés" + "1 Tampo".
+2.  **Ficha Técnica:** Define que "Mesa" = "4 Pés" + "1 Tampo".
 3.  **Histórico de Produção:** Log imutável de todas as operações fabris.
 4.  **Gestão Visual:** Painéis de controle para operadores.
 

@@ -12,6 +12,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Map;
+import java.util.HashMap;
 import java.time.LocalDateTime;
 import java.math.BigDecimal;
 
@@ -44,12 +46,18 @@ public class ProdutoService {
     // 2 Passo: Cérebro do Sistema
     @Transactional
     public void adicionarInsumo(Long idProdutoPai, Long idMaterial, Integer quantidade) {
+        if (quantidade == null || quantidade <= 0) {
+            throw new IllegalArgumentException("Quantidade deve ser maior que zero");
+        }
         Produto pai = produtoRepository.findById(idProdutoPai)
                 .orElseThrow(() -> new IllegalArgumentException("Produto pai não encontrado."));
 
         Produto material = produtoRepository.findById(idMaterial)
                 .orElseThrow(() -> new IllegalArgumentException("Material não encontrado"));
         // Só pode adicionar insumos se o Pai for PRODUTO_FINALIZADO
+        if (temCicloNaReceita(idProdutoPai, idMaterial)) {
+            throw new IllegalArgumentException("Um produto não pode usar a si mesmo na receita.");
+        }
         if (!pai.getTipo().equals(TipoProduto.PRODUTO_FINALIZADO)) {
             throw new RuntimeException("Apenas produtos finalizados podem ter ficha técnica.");
         }
@@ -74,8 +82,11 @@ public class ProdutoService {
     // 3 Passo: Registrar Produção
     @Transactional
     public void registrarProducao(Long idProduto, Integer quantidadeProducao) {
+        if (quantidadeProducao == null || quantidadeProducao <= 0) {
+            throw new IllegalArgumentException("Quantidade de produção deve ser maior que zero");
+        }
         // 3.1: Achar o produto final
-        Produto produtoFinal = produtoRepository.findById(idProduto)
+        Produto produtoFinal = produtoRepository.findByIdWithLock(idProduto)
                 .orElseThrow(() -> new IllegalArgumentException("Produto não encontrado"));
 
         // 3.2: Buscar a receita do produto
@@ -85,21 +96,23 @@ public class ProdutoService {
         }
 
         // 3.3: Validar se tem estoque de tudo antes de começar
+        Map<Long, Produto> materiaisRestritos = new HashMap<>();
         for (ItemFichaTecnica item : receita) {
-            Produto materiaPrima = item.getMaterial();
+            Produto materiaPrima = produtoRepository.findByIdWithLock(item.getMaterial().getId())
+                    .orElseThrow(() -> new IllegalArgumentException("Material não encontrado"));
             int necessario = item.getQuantidade() * quantidadeProducao;
 
-            // Caso o estoque é menor do que o necessário vai dar erro
             if (materiaPrima.getSaldoEstoque() < necessario) {
                 throw new IllegalArgumentException(
                         "Estoque insuficiente de: " + materiaPrima.getNome() +
-                                ". Precisa de " + necessario + ", tem apenas " + materiaPrima.getSaldoEstoque());
+                                ". Precisa de " + necessario + ", e tem apenas " + materiaPrima.getSaldoEstoque());
             }
+            materiaisRestritos.put(item.getMaterial().getId(), materiaPrima);
         }
 
         // 3.4: Se passou pela verificação, irá deduzir o estoque
         for (ItemFichaTecnica item : receita) {
-            Produto materiaPrima = item.getMaterial();
+            Produto materiaPrima = materiaisRestritos.get(item.getMaterial().getId());
             int necessario = item.getQuantidade() * quantidadeProducao;
 
             materiaPrima.setSaldoEstoque(materiaPrima.getSaldoEstoque() - necessario);
@@ -150,9 +163,9 @@ public class ProdutoService {
     // 6 Passo: Permissão para o funcionário adicionar remessas
     @Transactional
     public void reabastecer(Long idProduto, Integer quantidade) {
-        if (quantidade <= 0)
+        if (quantidade == null || quantidade <= 0) {
             throw new IllegalArgumentException("Quantidade deve ser maior que zero");
-
+        }
         Produto produto = produtoRepository.findById(idProduto)
                 .orElseThrow(() -> new IllegalArgumentException("Produto não encontrado"));
 
@@ -180,5 +193,33 @@ public class ProdutoService {
     // 8 Passo: Consultar a receita dos produtos manufaturados
     public List<ItemFichaTecnica> buscarReceita(Long idProdutoPai) {
         return fichaTecnicaRepository.findByProdutoPaiId(idProdutoPai);
+    }
+
+    // 9 Passo: Verificar se existe um ciclo na receita
+    private boolean temCicloNaReceita(Long produtoPai, Long novoMaterial) {
+        if (produtoPai.equals(novoMaterial)) {
+            return true;
+        }
+
+        return verificaCicloRecursivo(novoMaterial, produtoPai, new java.util.HashSet<>());
+    }
+
+    private boolean verificaCicloRecursivo(Long atual, Long alvo, java.util.Set<Long> visitados) {
+        if (visitados.contains(atual)) {
+            return false;
+        }
+        visitados.add(atual);
+
+        List<ItemFichaTecnica> receita = fichaTecnicaRepository.findByProdutoPaiId(atual);
+        for (ItemFichaTecnica item : receita) {
+            Long materialId = item.getMaterial().getId();
+            if (materialId.equals(alvo)) {
+                return true;
+            }
+            if (verificaCicloRecursivo(materialId, alvo, visitados)) {
+                return true;
+            }
+        }
+        return false;
     }
 }
