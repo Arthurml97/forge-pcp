@@ -17,6 +17,9 @@ public class Produto {
     @Column(precision = 10, scale = 2)
     private BigDecimal custo;
 
+    @Column(precision = 10, scale = 2)
+    private BigDecimal preco;
+
     private Integer saldoEstoque = 0;
 
     @Enumerated(EnumType.STRING)

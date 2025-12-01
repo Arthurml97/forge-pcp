@@ -9,7 +9,6 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/historico")
-@CrossOrigin(origins = "*")
 public class HistoricoController {
 
     private final ProdutoService service;

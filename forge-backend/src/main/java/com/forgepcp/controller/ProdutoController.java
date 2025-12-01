@@ -2,6 +2,7 @@ package com.forgepcp.controller;
 
 import com.forgepcp.dto.ItemFichaRequestDTO;
 import com.forgepcp.dto.ProducaoRequestDTO;
+import com.forgepcp.model.ItemFichaTecnica;
 import com.forgepcp.model.Produto;
 import com.forgepcp.service.ProdutoService;
 import org.springframework.http.ResponseEntity;
@@ -12,7 +13,6 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/produtos")
-@CrossOrigin(origins = "*")
 public class ProdutoController {
 
     private final ProdutoService produtoService;
@@ -58,5 +58,19 @@ public class ProdutoController {
     public ResponseEntity<Void> deletar(@PathVariable Long id) {
         produtoService.deletar(id);
         return ResponseEntity.noContent().build();
+    }
+
+    // 6 Passo: Endpoint para reabastecer o estoque --/ POST
+    // /api/produtos/{id}/reabastecer
+    @PostMapping("/{id}/reabastecer")
+    public ResponseEntity<Void> reabastecer(@PathVariable Long id, @RequestBody ProducaoRequestDTO request) {
+        produtoService.reabastecer(id, request.quantidade());
+        return ResponseEntity.ok().build();
+    }
+
+    // 7 Passo: Endpoint para buscar a receita --/ GET /api/produtos/{id}/receita
+    @GetMapping("/{id}/ficha-tecnica")
+    public ResponseEntity<List<ItemFichaTecnica>> getReceita(@PathVariable Long id) {
+        return ResponseEntity.ok(produtoService.buscarReceita(id));
     }
 }

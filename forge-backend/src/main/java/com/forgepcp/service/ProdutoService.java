@@ -13,6 +13,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.time.LocalDateTime;
+import java.math.BigDecimal;
 
 @Service
 public class ProdutoService {
@@ -53,12 +54,21 @@ public class ProdutoService {
             throw new RuntimeException("Apenas produtos finalizados podem ter ficha técnica.");
         }
 
-        ItemFichaTecnica item = new ItemFichaTecnica();
-        item.setProdutoPai(pai);
-        item.setMaterial(material);
-        item.setQuantidade(quantidade);
+        java.util.Optional<ItemFichaTecnica> itemExistente = fichaTecnicaRepository.findByProdutoPaiAndMaterial(pai,
+                material);
 
-        fichaTecnicaRepository.save(item);
+        if (itemExistente.isPresent()) {
+            ItemFichaTecnica item = itemExistente.get();
+            item.setQuantidade(quantidade);
+            fichaTecnicaRepository.save(item);
+        } else {
+            ItemFichaTecnica item = new ItemFichaTecnica();
+            item.setProdutoPai(pai);
+            item.setMaterial(material);
+            item.setQuantidade(quantidade);
+            fichaTecnicaRepository.save(item);
+        }
+        atualizarCustoDoProduto(pai);
     }
 
     // 3 Passo: Registrar Produção
@@ -135,5 +145,40 @@ public class ProdutoService {
         // 5.4: Apagar o produto
         produtoRepository.deleteById(id);
 
+    }
+
+    // 6 Passo: Permissão para o funcionário adicionar remessas
+    @Transactional
+    public void reabastecer(Long idProduto, Integer quantidade) {
+        if (quantidade <= 0)
+            throw new IllegalArgumentException("Quantidade deve ser maior que zero");
+
+        Produto produto = produtoRepository.findById(idProduto)
+                .orElseThrow(() -> new IllegalArgumentException("Produto não encontrado"));
+
+        produto.setSaldoEstoque(produto.getSaldoEstoque() + quantidade);
+        produtoRepository.save(produto);
+    }
+
+    // 7 Passo: Atualização do custo final do produto manufaturado`
+    private void atualizarCustoDoProduto(Produto produtoPai) {
+        List<ItemFichaTecnica> receita = fichaTecnicaRepository.findByProdutoPaiId(produtoPai.getId());
+
+        BigDecimal custoTotal = BigDecimal.ZERO;
+
+        for (ItemFichaTecnica item : receita) {
+            BigDecimal custoMaterial = item.getMaterial().getCusto();
+            BigDecimal quantidade = new BigDecimal(item.getQuantidade());
+            BigDecimal custoLinha = custoMaterial.multiply(quantidade);
+            custoTotal = custoTotal.add(custoLinha);
+        }
+
+        produtoPai.setCusto(custoTotal);
+        produtoRepository.save(produtoPai);
+    }
+
+    // 8 Passo: Consultar a receita dos produtos manufaturados
+    public List<ItemFichaTecnica> buscarReceita(Long idProdutoPai) {
+        return fichaTecnicaRepository.findByProdutoPaiId(idProdutoPai);
     }
 }
